@@ -1,0 +1,43 @@
+# ---- 明确不纳入版本控制 ----
+# 需求与设计文档目录（仅本地保留）
+docs/
+# 开发约束文档（仅本地保留）
+约束文档.md
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- 运行时数据 ----
+data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+backups/
+uploads/
+
+# ---- Node / 前端 ----
+node_modules/
+dist/
+.vite/
+*.local
+
+# ---- 环境与密钥 ----
+.env
+.env.*
+!.env.example
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

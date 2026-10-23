@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+alembic
+markdown-it-py
+mdit-py-plugins
+argon2-cffi
+itsdangerous
+python-multipart
+pytest
+httpx

@@ -1,0 +1,55 @@
+# SelfDrill 反向代理配置
+#
+# 生产环境：把 {$SITE_ADDRESS} 换成你的域名，Caddy 会自动申请并续期 HTTPS 证书。
+# 本地/内网：保持默认的 :80，通过 http 访问。
+#
+# 职责：
+# 1. 提供前端静态文件（SPA 回退到 index.html）。
+# 2. 把 /api 反向代理到后端，并保留 Cookie 与真实客户端信息。
+
+{
+	# 生产环境建议打开，减少信息泄漏
+	# servers {
+	# 	protocols h1 h2
+	# }
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	root * /srv
+	file_server
+
+	# 静态资源带内容哈希，可以长期缓存
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	# index.html 不缓存，保证发版后立刻生效
+	@html path / /index.html
+	header @html Cache-Control "no-cache"
+
+	handle /api/* {
+		reverse_proxy api:8000 {
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# 除 /api 外的未知路径交给 SPA 路由处理
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

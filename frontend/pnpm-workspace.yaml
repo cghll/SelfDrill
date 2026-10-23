@@ -1,0 +1,5 @@
+# pnpm 11 把「允许执行安装脚本」的开关放在这里（package.json 的 pnpm 字段已不再读取）。
+# esbuild 需要执行安装脚本才能提供可用的原生二进制。
+allowBuilds:
+  esbuild: true
+  vue-demi: true

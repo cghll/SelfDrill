@@ -1,0 +1,8 @@
+# 统一换行符，避免 Windows 上产生大量 CRLF 警告
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,95 @@
+# SelfDrill 生产部署
+#
+# 使用：
+#   1. 复制 .env.example 为 .env 并填写 APP_SECRET_KEY、INITIAL_PASSWORD
+#   2. docker compose up -d --build
+#   3. 浏览器访问 http://<服务器地址>/
+#
+# 架构：web(Caddy 静态文件 + /api 反代) → api(FastAPI) → SQLite 持久化卷
+
+name: selfdrill
+
+services:
+  api:
+    image: selfdrill-api
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?必须配置 APP_SECRET_KEY}
+      DATABASE_URL: sqlite:////data/app.db
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /data/backups
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10485760}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-2592000}
+      PREVIEW_TTL_SECONDS: ${PREVIEW_TTL_SECONDS:-21600}
+      INITIAL_USERNAME: ${INITIAL_USERNAME:-owner}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD:?必须配置 INITIAL_PASSWORD}
+      # 前端与 API 同源，生产环境不需要跨域
+      CORS_ORIGINS: ""
+    volumes:
+      - selfdrill-data:/data
+    expose:
+      - "8000"
+    # 生产环境不把 API 直接暴露到公网（docs/02 第 8 节）
+    networks:
+      - internal
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # 换成域名（例如 selfdrill.example.com）即可自动启用 HTTPS
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+
+  # 每日备份数据库与上传目录，保留最近 7 份。
+  # 复用 api 镜像：它自带 Python 与 sqlite3，可以用 SQLite 在线备份 API
+  # 做一致性快照，而不是直接复制可能丢失 WAL 内容的文件。
+  backup:
+    image: selfdrill-api
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: sqlite:////data/app.db
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /data/backups
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - selfdrill-data:/data
+    entrypoint: ["python", "scripts/backup.py", "--loop"]
+    working_dir: /app
+    # 复用 api 镜像会继承它的 HEALTHCHECK，但备份容器里没有 uvicorn，
+    # 必须显式关掉，否则会被误判为不健康
+    healthcheck:
+      disable: true
+    networks:
+      - internal
+
+volumes:
+  selfdrill-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
+    driver: bridge

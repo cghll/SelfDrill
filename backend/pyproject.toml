@@ -1,0 +1,15 @@
+[project]
+name = "selfdrill-backend"
+version = "1.0.0"
+description = "SelfDrill 后端：Markdown 题库导入、版本更新与随机轮次刷题"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
